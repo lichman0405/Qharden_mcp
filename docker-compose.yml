@@ -1,0 +1,36 @@
+# docker-compose.yml
+# Version 2.0: Added Redis service for session storage and task queueing.
+
+version: '3.8'
+
+services:
+  mcp_server:
+    # This section remains unchanged
+    build: .
+    container_name: mcp_server_service
+    ports:
+      - "1314:8002" 
+    env_file:
+      - .env
+    volumes:
+      - ./app:/app
+    depends_on:
+      - redis
+
+  # Redis service for session storage and task queueing
+  redis:
+    image: redis:7.2-alpine
+    container_name: mcp_redis
+    ports:
+      - "1315:6379"
+    volumes:
+      - redis_data:/data
+    # Optional: Add a healthcheck to ensure Redis is ready
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  redis_data:

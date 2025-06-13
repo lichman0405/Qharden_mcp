@@ -1,0 +1,13 @@
+# requirements.txt
+fastapi
+uvicorn[standard]
+python-dotenv
+httpx
+openai
+rich
+pydantic
+pydantic-settings
+tavily-python
+ase
+redis
+celery

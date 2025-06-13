@@ -1,0 +1,10 @@
+# not include environment settings
+.env
+.dockerignore
+
+# not include MacOS settings
+.DS_Store
+
+# not include any pycache files in any directory
+__pycache__
+
