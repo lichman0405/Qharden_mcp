@@ -1,26 +1,22 @@
-version: '3.8'
-
 services:
   # The main FastAPI web server
   mcp_server:
     build: .
     container_name: mcp_server_api
     ports:
-      # Expose port 1314 on the host, mapping to port 8002 inside the container
-      - "1314:8002" 
+      - "1314:8002"
     env_file: .env
     volumes:
-      - ./app:/app
+      - ./app:/code/app
     depends_on:
       redis:
-        condition: service_healthy # Wait for Redis to be healthy
+        condition: service_healthy
 
-  # The Redis database for sessions and task queueing
+  # The Redis database
   redis:
     image: redis:7.2-alpine
     container_name: mcp_redis
     ports:
-      # Expose port 1315 on the host, mapping to port 6379 inside the container
       - "1315:6379"
     volumes:
       - redis_data:/data
@@ -30,16 +26,17 @@ services:
       timeout: 5s
       retries: 5
 
+  # The Celery worker service
   celery_worker:
-    build: . 
+    build: .
     container_name: mcp_celery_worker
-    command: celery -A app.worker.celery_app worker --loglevel=info -P solo
+    command: celery -A app.worker worker --loglevel=info -P solo
     env_file: .env
     volumes:
-      - ./app:/app 
+      - ./app:/code/app
     depends_on:
       redis:
-        condition: service_healthy 
+        condition: service_healthy
 
 volumes:
   redis_data:
