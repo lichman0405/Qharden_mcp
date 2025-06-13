@@ -1,36 +1,45 @@
-# docker-compose.yml
-# Version 2.0: Added Redis service for session storage and task queueing.
-
 version: '3.8'
 
 services:
+  # The main FastAPI web server
   mcp_server:
-    # This section remains unchanged
     build: .
-    container_name: mcp_server_service
+    container_name: mcp_server_api
     ports:
+      # Expose port 1314 on the host, mapping to port 8002 inside the container
       - "1314:8002" 
-    env_file:
-      - .env
+    env_file: .env
     volumes:
       - ./app:/app
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy # Wait for Redis to be healthy
 
-  # Redis service for session storage and task queueing
+  # The Redis database for sessions and task queueing
   redis:
     image: redis:7.2-alpine
     container_name: mcp_redis
     ports:
+      # Expose port 1315 on the host, mapping to port 6379 inside the container
       - "1315:6379"
     volumes:
       - redis_data:/data
-    # Optional: Add a healthcheck to ensure Redis is ready
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+
+  celery_worker:
+    build: . 
+    container_name: mcp_celery_worker
+    command: celery -A app.worker.celery_app worker --loglevel=info -P solo
+    env_file: .env
+    volumes:
+      - ./app:/app 
+    depends_on:
+      redis:
+        condition: service_healthy 
 
 volumes:
   redis_data:
