@@ -4,6 +4,7 @@
 # Version: 0.1.0
 
 from pydantic import BaseModel, Field
+from typing import Optional
 
 class ChatRequest(BaseModel):
     """
@@ -26,6 +27,7 @@ class ChatResponse(BaseModel):
     session_id: str
     role: str
     content: str
+    raw_assistant_response: Optional[str] = None
 
 class NewSessionResponse(BaseModel):
     """

@@ -28,5 +28,6 @@ async def chat_with_mcp(request: ChatRequest):
     return ChatResponse(
         session_id=request.session_id,
         role=assistant_message.role,
-        content=str(assistant_message.content)
+        content=str(assistant_message.content),
+        raw_assistant_response=str(assistant_message.content) # 把完整的原始回复也放进去
     )
