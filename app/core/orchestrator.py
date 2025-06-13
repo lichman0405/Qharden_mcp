@@ -107,7 +107,7 @@ async def run_conversation_step(session_id: str, user_input: str) -> Message:
         console.rule(f"ReAct Turn {turn + 1}")
         
         await session_manager.save_conversation(session_id, conversation)
-        messages_for_llm = [msg.model_dump(exclude_none=True, include_defaults=False) for msg in conversation.messages]
+        messages_for_llm = [msg.model_dump(exclude_none=True) for msg in conversation.messages]
         
         console.info(f"Calling LLM for session_id: {session_id}...")
         llm_response = await call_llm(
