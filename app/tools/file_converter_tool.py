@@ -1,8 +1,4 @@
-# app/tools/file_converter_tool.py
-# A tool to interconvert between chemical file formats using the ASE library.
-# Version 3.1.0: Corrected data type passed to ASE to handle bytes correctly.
-# Author: Shibo Li
-# Date: 2025-06-13
+
 
 import base64
 import io
@@ -49,27 +45,21 @@ class FileConverterTool(BaseTool):
             return f"Error: Source file '{source_filename}' not found in workspace."
 
         try:
-            # --- THE CRITICAL FIX IS HERE ---
-            # Step 1: Decode the input content from Base64 directly into bytes.
-            # We DO NOT decode it further into a utf-8 string.
             decoded_content_bytes = base64.b64decode(input_content_base64)
-            
-            # Step 2: Use io.BytesIO to treat the raw bytes content as an in-memory binary file.
             input_file_handle = io.BytesIO(decoded_content_bytes)
             
-            # Step 3: Read the structure using ASE. It now correctly receives bytes.
-            structure = ase_io.read(input_file_handle)
+            # --- THE CRITICAL FIX IS HERE ---
+            # We explicitly tell ase.io.read what the format of the input file is,
+            # by extracting the extension from the source filename. This avoids guessing.
+            input_format = source_filename.rsplit('.', 1)[-1].lower()
+            structure = ase_io.read(input_file_handle, format=input_format)
             
-            # Step 4: Write the structure to another in-memory text file.
-            # ase.io.write handles the conversion to text internally.
             output_file_handle = io.StringIO()
             ase_io.write(output_file_handle, structure, format=target_format)
             output_content_str = output_file_handle.getvalue()
             
-            # Step 5: Encode the new string content back to Base64.
             output_content_base64 = base64.b64encode(output_content_str.encode('utf-8')).decode('utf-8')
             
-            # Step 6: Save the new file back to the workspace.
             new_filename = f"{source_filename.rsplit('.', 1)[0]}.{target_format}"
             conversation.workspace[new_filename] = output_content_base64
             
