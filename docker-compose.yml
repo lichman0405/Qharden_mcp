@@ -1,3 +1,4 @@
+
 services:
   # The main FastAPI web server
   mcp_server:
@@ -8,9 +9,13 @@ services:
     env_file: .env
     volumes:
       - ./app:/code/app
+    networks: 
+      - mcp_network
     depends_on:
       redis:
         condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   # The Redis database
   redis:
@@ -20,6 +25,8 @@ services:
       - "1315:6379"
     volumes:
       - redis_data:/data
+    networks: 
+      - mcp_network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -34,9 +41,16 @@ services:
     env_file: .env
     volumes:
       - ./app:/code/app
+    networks: 
+      - mcp_network
     depends_on:
       redis:
         condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+networks:
+  mcp_network:
+    driver: bridge
 
 volumes:
   redis_data:
