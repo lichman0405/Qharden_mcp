@@ -83,7 +83,7 @@ async def _execute_tool(tool_name: str, tool_args: dict, conversation: Conversat
 
 async def run_conversation_step(session_id: str, user_input: str) -> Message:
     """
-    Runs the main Hybrid ReAct conversation loop with file pre-processing.
+    Runs the main Hybrid ReAct conversation loop.
     """
     MAX_TURNS = 10
     
@@ -98,22 +98,21 @@ async def run_conversation_step(session_id: str, user_input: str) -> Message:
         system_message = Message(role="system", content=formatted_prompt)
         conversation.messages.append(system_message)
     
-    # --- NEW: Pre-process user input to handle files ---
-    cleaned_user_input = _extract_and_save_files(user_input, conversation)
-    
-    conversation.messages.append(Message(role="user", content=cleaned_user_input))
+    conversation.messages.append(Message(role="user", content=user_input))
     
     for turn in range(MAX_TURNS):
         console.rule(f"ReAct Turn {turn + 1}")
         
         await session_manager.save_conversation(session_id, conversation)
-        messages_for_llm = [msg.model_dump(exclude_none=True) for msg in conversation.messages]
+        messages_for_llm = [msg.model_dump(exclude_none=True, include_defaults=False) for msg in conversation.messages]
         
         console.info(f"Calling LLM for session_id: {session_id}...")
+        
         llm_response = await call_llm(
             messages=messages_for_llm,
             tools=tool_registry.get_definitions()
         )
+        
         conversation.messages.append(llm_response)
 
         if llm_response.content:
@@ -135,6 +134,7 @@ async def run_conversation_step(session_id: str, user_input: str) -> Message:
                 console.info(f"Dispatching async tool '{tool_name}' to Celery worker.")
                 task = execute_tool_task.delay(session_id, tool_name, tool_args)
                 observation = f"Task '{tool_name}' submitted with ID: {task.id}. You MUST use the 'check_task_status' tool to get the result before proceeding."
+                # This is a final action for this turn, so we create a response and return
                 final_assistant_message = Message(role="assistant", content=observation, raw_assistant_response=f"Thought: I have submitted the asynchronous task '{tool_name}'. I need to inform the user and wait for them to check the status.\n{observation}")
                 conversation.messages.append(final_assistant_message)
                 await session_manager.save_conversation(session_id, conversation)
@@ -145,7 +145,13 @@ async def run_conversation_step(session_id: str, user_input: str) -> Message:
             observation_message = Message(role="tool", tool_call_id=tool_call.id, content=observation)
             conversation.messages.append(observation_message)
         else:
-            console.warning("LLM provided a thought but no tool call. Will loop again.")
+            # --- THE CRITICAL FIX IS HERE ---
+            # If the LLM has a thought but calls no tool, it might be stuck.
+            # We add a new "user" message to force it to proceed.
+            console.warning("LLM provided a thought but no action. Forcing continuation.")
+            force_continue_message = Message(role="user", content="Continue with the next action based on your plan.")
+            conversation.messages.append(force_continue_message)
+
 
     timeout_message = "I have reached the maximum number of steps without finding a final answer. Please try reformulating your request."
     return Message(role="assistant", content=timeout_message)
